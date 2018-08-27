@@ -1,3 +1,6 @@
 confirmation_message: "By leaving this page, your order will be left as incomplete."
-routes:
-  - checkout_form
+visibility:
+  routes:
+    - checkout_form
+  user_role_mode: 0
+  user_role_roles: {  }

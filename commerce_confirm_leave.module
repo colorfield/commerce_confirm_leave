@@ -5,6 +5,7 @@
  * Contains commerce_confirm_leave.module.
  */
 
+use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 
@@ -28,7 +29,17 @@ function commerce_confirm_leave_help($route_name, RouteMatchInterface $route_mat
  * @todo use commerce_confirm_leave_form_BASE_FORM_ID_alter
  */
 function commerce_confirm_leave_form_alter(&$form, FormStateInterface $form_state, $form_id) {
-  $setConfirmation = FALSE;
+  // Limit to cart and checkout forms.
+  if ((strpos($form_id, 'commerce_cart_form') === FALSE)
+    && (strpos($form_id, 'commerce_checkout') === FALSE)) {
+    return;
+  }
+
+  // Do not display the confirmation message for excluded roles.
+  $account = \Drupal::currentUser();
+  if (!_commerce_confirm_leave_visibility_roles($account)) {
+    return;
+  }
 
   // Check current route against configuration.
   $routeMatch = \Drupal::routeMatch();
@@ -36,7 +47,7 @@ function commerce_confirm_leave_form_alter(&$form, FormStateInterface $form_stat
   $config = \Drupal::configFactory()->get('commerce_confirm_leave.settings');
 
   $configuredRoutes = [];
-  $routes = $config->get('routes');
+  $routes = $config->get('visibility.routes');
   if (isset($routes['cart_page']) && array_key_exists('cart_page', $routes) && $routes['cart_page'] !== 0) {
     $configuredRoutes[] = 'commerce_cart.page';
   }
@@ -44,22 +55,52 @@ function commerce_confirm_leave_form_alter(&$form, FormStateInterface $form_stat
     $configuredRoutes[] = 'commerce_checkout.form';
   }
 
-  if (in_array($routeName, $configuredRoutes)) {
-    $setConfirmation = TRUE;
-  }
-
   // Do not display the confirmation message
   // when the order is set as 'complete'.
   // Could be replaced by checking in JS if there is Commerce form on the page.
   if ($routeName === 'commerce_checkout.form' && $routeMatch->getParameter('step') === 'complete') {
-    $setConfirmation = FALSE;
+    return;
   }
 
-  if ($setConfirmation) {
+  // Attach the behaviours for the selected routes.
+  if (in_array($routeName, $configuredRoutes)) {
     $form['#attached']['library'][] = 'commerce_confirm_leave/confirm_leave';
     $form['#attached']['drupalSettings']['commerce_confirm_leave'] = [
       'confirmation_message' => $config->get('confirmation_message'),
     ];
   }
 
+}
+
+/**
+ * Confirmation message visibility check for user roles.
+ *
+ * @param \Drupal\Core\Session\AccountInterface $account
+ *   The user account to check the roles from.
+ *
+ * @return bool
+ *   TRUE if the confirmation message should be shown.
+ */
+function _commerce_confirm_leave_visibility_roles(AccountInterface $account) {
+  $config = \Drupal::config('commerce_confirm_leave.settings');
+  $enabled = $visibility_user_role_mode = $config->get('visibility.user_role_mode');
+  $visibility_user_role_roles = $config->get('visibility.user_role_roles');
+
+  if (count($visibility_user_role_roles) > 0) {
+    // One or more roles are selected.
+    foreach (array_values($account->getRoles()) as $user_role) {
+      // Is the current user a member of one of these roles?
+      if (in_array($user_role, $visibility_user_role_roles)) {
+        // Current user is a member of a selected/excluded role.
+        $enabled = !$visibility_user_role_mode;
+        break;
+      }
+    }
+  }
+  else {
+    // No role is selected, the message should be visible for all roles.
+    $enabled = TRUE;
+  }
+
+  return $enabled;
 }

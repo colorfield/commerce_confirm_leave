@@ -5,4 +5,22 @@ commerce_confirm_leave.config:
     message:
       type: text
       label: 'Confirmation message'
-  # @todo routes
+    visibility:
+      type: mapping
+      label: 'Visibility'
+      mapping:
+        routes:
+          type: sequence
+          label: 'Routes'
+          sequence:
+            type: string
+            label: 'Route'
+        user_role_mode:
+          type: integer
+          label: 'Show confirmation to specific roles'
+        user_role_roles:
+          type: sequence
+          label: 'Roles'
+          sequence:
+            type: string
+            label: 'Role'

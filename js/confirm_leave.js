@@ -26,13 +26,14 @@
             submit = true;
           });
         });
-
+        // @todo review custom error message instead of default one.
+        // See custom message support removal
+        // https://bugs.chromium.org/p/chromium/issues/detail?id=587940
         window.addEventListener("beforeunload", function (e) {
           if (!submit) {
-            // @todo review error message
             var confirmationMessage = settings.commerce_confirm_leave.confirmation_message;
-            e.returnValue = confirmationMessage;     // Gecko, Trident, Chrome 34+
-            return confirmationMessage;              // Gecko, WebKit, Chrome <34
+            (e || window.event).returnValue = confirmationMessage; // Gecko, IE Trident, Chrome 34+
+            return confirmationMessage;                            // Webkit Safari, Chrome <34
           }
         });
 
